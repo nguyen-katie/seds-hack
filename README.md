@@ -63,23 +63,11 @@ Credits: SatNOGS (Libre Space Foundation); SONATE-2 (University of Würzburg); R
 ```bash
 pip install -r requirements.txt
 
-python fetch_data.py          # download pass recordings (the 3 passes are also in data/)
-python clean_frames.py        # clean SatNOGS ground-truth frames
-python run_pipeline.py        # decode all passes, telemetry logs, plots, comparison; opens a summary
-python stress_test.py         # noise, dropout and frequency-offset tests (~5 min)
-
 python decoder.py data/satnogs/sonate2_15104225/audio.ogg   # decode one recording (live demo)
-
-python src/run_real_frontend.py && python src/validate_bursts.py     # blind front end
-python src/sweep_real.py data/satnogs/sonate2_frames_clean.csv       # AFSK rescue sweep
-
-# RadioML (641 MB download, ~4 min training on CPU)
-curl -L -o data/RML2016.10a_dict.pkl "https://huggingface.co/datasets/FlowVortex/RML/resolve/main/RML2016.10a_dict.pkl?download=true"
-python radioml_classifier.py train
-python radioml_classifier.py transfer
+python run_pipeline.py                                      # all passes: telemetry logs, plots, SatNOGS comparison; opens a summary
 ```
 
-To download fresh ground-truth frames, set a free [SatNOGS DB](https://db.satnogs.org) API token first: `SATNOGS_API_TOKEN=<token> python fetch_data.py` (PowerShell: `$env:SATNOGS_API_TOKEN="<token>"; python fetch_data.py`). All outputs go to `results/`.
+The three pass recordings and SatNOGS ground-truth frames are included in `data/`. All outputs go to `results/`.
 
 ---
 
