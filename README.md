@@ -4,6 +4,8 @@
 
 When a satellite pass gets weak, ground stations lose packets: a couple of flipped bits break the checksum and the frame is discarded. We built a **zero-tuning receiver** that runs on real SatNOGS recordings of the **SONATE-2** CubeSat, finds the signal on its own, decodes it to verified telemetry, and **repairs damaged frames** using the receiver's own bit-confidence.
 
+**Slide deck:** [GHOST_FRAMES_slides.pptx](GHOST_FRAMES_slides.pptx)
+
 **Headline results**
 - **780 checksum-verified telemetry packets** decoded from 3 real passes, with no settings changed between passes or ground stations.
 - **10 ghost frames**: valid packets that SatNOGS's own decoder missed on the same recording. 8 were recovered by our bit-repair step; 7 were independently confirmed by other ground stations.
