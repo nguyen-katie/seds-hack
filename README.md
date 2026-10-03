@@ -10,9 +10,12 @@
 
 ### Problem
 
-A spacecraft far from Earth can't wait for a human to tune a radio. Signals arrive weak, drift with Doppler, and fade in and out. When a pass gets weak, a couple of flipped bits break a packet's checksum and the ground station discards the whole frame.
+When a satellite passes near the horizon, its received signal can become weak enough that noise and other signal impairments cause individual bits to be corrupted. Even a small number of errors can cause a packet's CRC to fail, causing the frame to be rejected as invalid by the decoder.
 
-We built a **zero-tuning receiver** that takes real, noisy satellite recordings, filters them, acquires and re-acquires the signal on its own, outputs checksum-verified telemetry, and **repairs damaged frames** that a normal decoder throws away.
+GHOST FRAMES is an automated receiver designed to recover these otherwise discarded frames. Our system detects weak signal bursts, estimates key signal parameters, demodulates and decodes the transmission, and attempts to repair corrupted frames using the least-confident received bits.
+
+We evaluate the system using real satellite recordings from SONATE-2 through SatNOGS, while using RadioML 2016.10A to benchmark modulation classification across different signal-to-noise ratios.
+
 
 ### Approach
 
