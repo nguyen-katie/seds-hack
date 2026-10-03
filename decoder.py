@@ -195,6 +195,11 @@ def parse_ax25(frame):
 def decode(path, phases=10, max_flips=2):
     """Return a list of dicts, one per unique CRC-valid frame, sorted by time."""
     x, fs = load_audio(path)
+    return decode_audio(x, fs, phases, max_flips)
+
+
+def decode_audio(x, fs, phases=10, max_flips=2):
+    """Same as decode(), for audio already in memory."""
     y = clean(x, fs)
     sps = fs / BAUD
     found = {}

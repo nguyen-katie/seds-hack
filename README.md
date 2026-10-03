@@ -1,8 +1,16 @@
-# Autonomous Telemetry Receiver for SONATE-2
+# GHOST FRAMES: recovering the satellite packets ground stations throw away
 
 **MATLAB in Space Hackathon · Track 1: Deep-Space Communication & Signal Intelligence**
 
-We built a receiver that takes raw radio recordings of a real satellite pass and turns them into decoded spacecraft telemetry with no manual tuning. It finds the signal in the noise, locks on, decodes packets, verifies every one with a checksum and writes a telemetry log. When the signal fades out during a pass, it reacquires the signal on its own.
+When a satellite pass gets weak, ground stations lose packets: a couple of flipped bits break the checksum and the frame is discarded. We built a **zero-tuning receiver** that runs on real SatNOGS recordings of the **SONATE-2** CubeSat, finds the signal on its own, decodes it to verified telemetry, and **repairs damaged frames** using the receiver's own bit-confidence.
+
+**Headline results**
+- **780 checksum-verified telemetry packets** decoded from 3 real passes, with no settings changed between passes or ground stations.
+- **10 ghost frames**: valid packets that SatNOGS's own decoder missed on the same recording. 8 were recovered by our bit-repair step; 7 were independently confirmed by other ground stations.
+- **The receiver measures its own packet loss** from the satellite's packet counter, no ground truth needed (3% on the strongest pass).
+- **Re-acquires within 0.4 s** after every injected signal dropout, and tolerates large frequency offsets.
+- **Bit repair is worth about 1 dB**: near the noise limit it decodes twice as many packets as a plain decoder.
+- **RadioML-trained modulation classifier** (84% accuracy at SNR ≥ 0 dB), tested on the real satellite signal.
 
 ---
 
@@ -46,7 +54,7 @@ The decoder never "locks" to a single signal state: it searches for frame flags 
 |---|---|
 | **SatNOGS Network** (SONATE-2, NORAD 59112) | Real pass recordings: the input to our receiver |
 | **SatNOGS DB** | Frames decoded by SatNOGS for the same passes, used as ground truth |
-| **RadioML 2016.10A** | Exploring signal characteristics across modulations and SNRs (see [explore.ipynb](explore.ipynb)) |
+| **RadioML 2016.10A** | Training a modulation classifier (11 modulations, -20 to +18 dB SNR), then testing whether it transfers to the real SONATE-2 signal. Data exploration in [explore.ipynb](explore.ipynb) |
 
 Passes used:
 
@@ -71,7 +79,17 @@ python clean_frames.py
 
 # 3. Decode every pass, write telemetry logs, make plots and compare with SatNOGS
 python run_pipeline.py
+
+# 4. Stress test: added noise, signal dropouts, frequency offsets (~5 min)
+python stress_test.py
+
+# 5. RadioML: download the dataset (641 MB), train the classifier (~4 min on CPU), run the transfer test
+curl -L -o data/RML2016.10a_dict.pkl "https://huggingface.co/datasets/FlowVortex/RML/resolve/main/RML2016.10a_dict.pkl?download=true"
+python radioml_classifier.py train
+python radioml_classifier.py transfer
 ```
+
+On Windows PowerShell, set the token with `$env:SATNOGS_API_TOKEN="<your token>"; python fetch_data.py`.
 
 Outputs go to `results/`:
 
@@ -81,6 +99,9 @@ Outputs go to `results/`:
 | `telemetry_<pass>.csv` | Decoded packets for one pass |
 | `spectrum_<pass>.png` | Before/after spectrograms and average spectrum |
 | `comparison.csv`, `comparison.png` | Our decoder vs. SatNOGS on the same recordings |
+| `packet_counter.png`, `counter_loss.csv` | Packet loss measured from the satellite's own counter |
+| `stress_test.png`, `stress_*.csv` | Noise, dropout and frequency-offset tests |
+| `radioml_accuracy.png`, `radioml_transfer.png` | RadioML classifier accuracy and the real-signal transfer test |
 
 To decode a single recording directly: `python decoder.py path/to/audio.ogg`
 
@@ -127,6 +148,33 @@ A real deep-space receiver has no SatNOGS to check against. But SONATE-2 numbers
 | 15052729 | 396 | 648 | **39%** | 594 |
 
 **Checking the method:** wherever our packets overlap with other stations', the counter numbers line up exactly (265/265, 395/395, 117/117). The counter's estimate of packets sent is slightly *higher* than what all stations combined received, because it also counts packets no station heard (gray). Those are invisible to any comparison with ground truth.
+
+### Stress test: noise, dropouts and frequency offsets
+
+We took the strongest real recording (68 s, 119 packets) and injected impairments ([stress_test.py](stress_test.py)):
+
+![Stress test](results/stress_test.png)
+
+1. **Sensitivity (added noise).** Soft-decision rescue decodes more packets at every noise level, and the gap is largest near the cliff: at -16 dB, **58 packets vs. 29 (2×)**; at -18 dB, 98 vs. 80. At the 50% point the rescue curve sits **about 1 dB further into the noise**. Noise is added to the demodulated audio, so this is an audio-domain SNR, not RF SNR. The recording is already close to its decoding limit, which is why the curve falls off so sharply.
+2. **Re-acquisition.** We replaced four stretches of the pass (2–5 s each) with signal-free receiver noise taken from the same recording. The decoder **picked up the first packet after every dropout, 0.06–0.35 s after the signal returned**, exactly the same packets as the clean run, with no reset or re-tuning.
+3. **Frequency offset / drift.** Constant offsets up to 2× the signal's own swing, and slow drift (0.5 Hz), cost at most 1 packet. Fast drift (2 Hz, far beyond real residual Doppler) costs 29%: the 0.2 s drift remover can't follow it.
+
+### RadioML: modulation classifier and synthetic-to-real transfer
+
+We trained a small 1-D CNN (4 convolutional layers) on RadioML 2016.10A to recognise 11 modulation types from 128 I/Q samples, using the standard 50/50 train/test split.
+
+![RadioML accuracy](results/radioml_accuracy.png)
+
+- **57% overall, 84% at SNR ≥ 0 dB**, in line with published baselines for this dataset.
+- At high SNR the FSK family (CPFSK, GFSK) is classified almost perfectly. QAM16/QAM64 and WBFM/AM-DSB are confused with each other, a known property of this dataset.
+
+**Does it transfer to a real satellite?** SONATE-2 uses GMSK, an FSK-family modulation. Our recordings are FM-demodulated audio, so we rebuilt I/Q: the audio is the signal's instantaneous frequency, and integrating it gives the phase. We then resampled to RadioML's 8 samples per symbol and classified 128-sample windows from inside decoded packets, and from signal-free noise as a control.
+
+![RadioML transfer test](results/radioml_transfer.png)
+
+- Inside real packets, the model answers **FSK family 88–95% of the time** (mostly CPFSK).
+- **Honest caveat:** noise-only windows are also called FSK family (99% GFSK). Rebuilding I/Q from audio makes everything constant-amplitude, which is FSK's defining feature, so the family answer is partly built in by the conversion.
+- What it does show: the model **separates real signal from noise** (CPFSK vs. GFSK), so features learned on synthetic data respond to real satellite signals. A conclusive transfer test needs raw I/Q recordings.
 
 ### Telemetry log
 

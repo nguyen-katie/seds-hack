@@ -1,0 +1,4 @@
+pass_id,signal_windows,predicted_fsk_family_pct,top_prediction,noise_windows,noise_top_prediction
+15039241,1325,87.5,CPFSK,380,GFSK
+15052729,1980,88.4,CPFSK,380,GFSK
+15104225,595,94.6,CPFSK,380,GFSK
