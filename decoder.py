@@ -213,12 +213,61 @@ def decode_audio(x, fs, phases=10, max_flips=2):
     return sorted(found.values(), key=lambda r: r["t"])
 
 
+def plot_decode(x, fs, frames, path, open_png=True):
+    """Spectrogram of the recording with every decoded packet marked. Saves and opens a PNG."""
+    import os
+    import subprocess
+    import sys
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, (a1, a2) = plt.subplots(2, 1, figsize=(13, 6.5), sharex=True, gridspec_kw={"height_ratios": [3, 1]})
+    f, t, S = signal.spectrogram(x - x.mean(), fs, nperseg=1024, noverlap=512)
+    S = 10 * np.log10(S + 1e-12)
+    a1.pcolormesh(t, f / 1000, S, shading="auto", cmap="viridis", vmin=np.percentile(S, 5), vmax=np.percentile(S, 99.5))
+    a1.set_ylim(0, 12)
+    a1.set_ylabel("Frequency (kHz)")
+    a1.set_title("Recording: vertical stripes are packet bursts", loc="left")
+
+    colors = {0: "#2a6fdb", 1: "#9dbdf2", 2: "#e8743b"}
+    names = {0: "decoded cleanly", 1: "rescued: 1 bit flipped", 2: "rescued: 2 bits flipped"}
+    for bits in (0, 1, 2):
+        ts = [r["t"] for r in frames if r["corrected_bits"] == bits]
+        a2.plot(ts, np.zeros(len(ts)), "|", ms=40, mew=2, color=colors[bits], label=f"{names[bits]} ({len(ts)})")
+    a2.set_yticks([])
+    a2.set_xlim(0, len(x) / fs)
+    a2.set_xlabel("Time into recording (s)")
+    a2.legend(loc="upper center", bbox_to_anchor=(0.5, -0.45), ncol=3, frameon=False)
+    for side in ["top", "right", "left"]:
+        a2.spines[side].set_visible(False)
+    fixed = sum(r["corrected_bits"] > 0 for r in frames)
+    a2.set_title(f"Decoded packets: {len(frames)} CRC-valid ({fixed} rescued by bit repair)", loc="left")
+
+    name = os.path.basename(os.path.dirname(os.path.abspath(path))) or "audio"
+    fig.suptitle(f"Decoder output: {name}", x=0.01, ha="left", fontsize=13)
+    plt.tight_layout()
+    os.makedirs("results", exist_ok=True)
+    out = os.path.abspath(f"results/decode_{name}.png")
+    fig.savefig(out, dpi=110)
+    plt.close(fig)
+    print(f"saved {out}")
+    if open_png:
+        if sys.platform == "win32":
+            os.startfile(out)
+        else:
+            subprocess.run(["open" if sys.platform == "darwin" else "xdg-open", out])
+
+
 if __name__ == "__main__":
     import sys
     path = sys.argv[1]
-    frames = decode(path)
+    x, fs = load_audio(path)
+    frames = decode_audio(x, fs)
     fixed = sum(r["corrected_bits"] > 0 for r in frames)
     print(f"{len(frames)} CRC-valid frames ({fixed} repaired by soft-decision)")
     for r in frames[:10]:
         p = parse_ax25(r["frame"])
         print(f"{r['t']:8.2f}s  {p['src']:>10} -> {p['dst']:<10} {len(r['frame']):4d} B  {p['payload'][:32].hex()}")
+    if "--no-plot" not in sys.argv:
+        plot_decode(x, fs, frames, path)

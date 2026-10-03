@@ -100,10 +100,13 @@ Outputs go to `results/`:
 | `spectrum_<pass>.png` | Before/after spectrograms and average spectrum |
 | `comparison.csv`, `comparison.png` | Our decoder vs. SatNOGS on the same recordings |
 | `packet_counter.png`, `counter_loss.csv` | Packet loss measured from the satellite's own counter |
+| `review.png` | One-page summary: vs. SatNOGS, bit repair, self-measured loss, ghost frames |
 | `stress_test.png`, `stress_*.csv` | Noise, dropout and frequency-offset tests |
 | `radioml_accuracy.png`, `radioml_transfer.png` | RadioML classifier accuracy and the real-signal transfer test |
 
-To decode a single recording directly: `python decoder.py path/to/audio.ogg`
+To decode a single recording directly: `python decoder.py path/to/audio.ogg` (prints the packets and pops up `results/decode_<name>.png`; add `--no-plot` to skip).
+
+`run_pipeline.py` finishes by opening a one-page summary, `results/review.png` (add `--no-open` to skip). To regenerate just that page: `python review_results.py`.
 
 Raw data goes in `data/` (git-ignored).
 

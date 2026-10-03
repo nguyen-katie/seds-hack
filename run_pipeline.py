@@ -5,6 +5,7 @@ Usage:
     python run_pipeline.py              # all passes in data/satnogs/sonate2_*/
     python run_pipeline.py 15104225     # one pass
     python run_pipeline.py --force      # re-decode even if a telemetry log already exists
+    python run_pipeline.py --no-open    # don't pop up the summary graph at the end
 """
 import glob
 import json
@@ -301,6 +302,9 @@ def main():
     if os.path.exists(f"{DATA}/sonate2_frames_clean.csv"):
         compare(dirs, logs)
     counter_loss(dirs, logs)
+    if os.path.exists(f"{DATA}/sonate2_frames_clean.csv"):
+        import review_results
+        review_results.main(open_png="--no-open" not in args)
 
 
 if __name__ == "__main__":
