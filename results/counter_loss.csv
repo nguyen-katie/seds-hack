@@ -1,0 +1,4 @@
+pass_id,decoded,counter_says_sent,estimated_loss_pct,all_stations_in_same_span,offset_consistent
+15039241,265,356,25.6,352,265/265
+15052729,396,648,38.9,594,395/395
+15104225,119,123,3.3,120,117/117

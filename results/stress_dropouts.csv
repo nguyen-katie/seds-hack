@@ -1,0 +1,5 @@
+dropout,length_s,first_packet_after_s,first_packet_after_in_clean_run_s
+50-53 s,3,0.35,0.35
+60-65 s,5,0.06,0.06
+75-77 s,2,0.11,0.11
+88-93 s,5,0.14,0.14

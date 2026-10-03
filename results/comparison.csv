@@ -1,0 +1,4 @@
+pass_id,date,station,satnogs_same_recording,ours,both,only_ours,only_ours_confirmed_by_other_stations,only_satnogs,repaired_by_soft_decision,all_stations_combined
+15039241,2026-09-21,DK0SB-VHF/UHF-Hi,382,265,265,0,0,117,118,384
+15052729,2026-09-25,DK0SB-VHF/UHF-Hi,602,396,395,1,0,207,192,602
+15104225,2026-10-02,PE0SAT-12,110,119,110,9,7,0,8,128

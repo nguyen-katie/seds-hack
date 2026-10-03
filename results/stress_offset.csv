@@ -1,0 +1,6 @@
+offset,decoded
+none,119
+constant +0.5,119
+constant +2,119
+drift +-1 @ 0.5 Hz,118
+drift +-1 @ 2 Hz,85
