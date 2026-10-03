@@ -85,7 +85,14 @@ python run_pipeline.py
 # 4. Stress test: added noise, signal dropouts, frequency offsets (~5 min)
 python stress_test.py
 
-# 5. RadioML: download the dataset (641 MB), train the classifier (~4 min on CPU), run the transfer test
+# 5. Blind front end and burst validation on the real passes
+python src/run_real_frontend.py
+python src/validate_bursts.py
+
+# 6. AFSK channel sweep with real SONATE-2 frames (self-test: python src/afsk.py)
+python src/sweep_real.py data/satnogs/sonate2_frames_clean.csv
+
+# 7. RadioML: download the dataset (641 MB), train the classifier (~4 min on CPU), run the transfer test
 curl -L -o data/RML2016.10a_dict.pkl "https://huggingface.co/datasets/FlowVortex/RML/resolve/main/RML2016.10a_dict.pkl?download=true"
 python radioml_classifier.py train
 python radioml_classifier.py transfer
@@ -180,6 +187,34 @@ We trained a small 1-D CNN (4 convolutional layers) on RadioML 2016.10A to recog
 - Inside real packets, the model answers **FSK family 88–95% of the time** (mostly CPFSK).
 - **Honest caveat:** noise-only windows are also called FSK family (99% GFSK). Rebuilding I/Q from audio makes everything constant-amplitude, which is FSK's defining feature, so the family answer is partly built in by the conversion.
 - What it does show: the model **separates real signal from noise** (CPFSK vs. GFSK), so features learned on synthetic data respond to real satellite signals. A conclusive transfer test needs raw I/Q recordings.
+
+### Blind front end: finding the packets with no prior knowledge
+
+[src/frontend.py](src/frontend.py) looks at raw audio with no knowledge of the satellite and finds where the packet bursts are, using an adaptive threshold computed from each recording (median + k × MAD), so nothing is hand-tuned. [src/validate_bursts.py](src/validate_bursts.py) checks those detections against the timestamps of packets SatNOGS actually received.
+
+| Pass | SatNOGS frames | Energy detector: bursts / recall | **FM-quieting detector: bursts / recall** |
+|---|---|---|---|
+| 15052729 | 602 | 699 / 100% | 320 / **100%** |
+| 15039241 | 382 | 0 / 0% | 432 / **100%** |
+| 15104225 | 195 | 192 / 100% | 66 / **100%** |
+
+The **FM-quieting detector** uses the physics of an FM receiver: when a carrier is present, the discriminator's high-frequency noise drops sharply, so packets show up as dips in the 7–10.5 kHz noise. It found a burst at every time SatNOGS received a packet, on all three passes. The plain energy detector failed completely on one pass.
+
+![Blind front end on pass 15104225](results/frontend_real_15104225.png)
+
+**Honest limitation:** the blind modulation/baud estimate does **not** work on this audio. It reports "AFSK, 782 baud", but SONATE-2 is 9600-baud GMSK. The main decoder doesn't depend on it: it searches bit timing directly.
+
+### A second rescue experiment: real packets through a simulated AFSK channel
+
+[src/afsk.py](src/afsk.py) is an independent AFSK 1200 / AX.25 decoder with soft bits and Chase rescue. [src/sweep_real.py](src/sweep_real.py) takes 40 real SONATE-2 frames from SatNOGS, re-modulates them as AFSK 1200, adds noise, and decodes with and without rescue:
+
+![AFSK sweep](src/results/sweep_real.png)
+
+At 9 dB, rescue recovers **85% of packets vs. 52.5%** for a standard decoder; at 8 dB, 52.5% vs. 35%. **Zero false accepts** at every SNR. This is a simulated channel (SONATE-2 itself transmits GMSK), so it complements the real-recording stress test above rather than replacing it.
+
+### A second RadioML classifier: expert features + random forest
+
+[src/radioml_classify.py](src/radioml_classify.py) classifies RadioML using hand-crafted signal features (higher-order cumulants, amplitude/phase/frequency statistics, spectral lines of x² and x⁴) and a random forest, trained in 1–2 minutes on a CPU. It's an interpretable alternative to the CNN.
 
 ### Telemetry log
 
