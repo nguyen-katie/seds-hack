@@ -37,10 +37,15 @@ Our receiver follows a fully automated pipeline:
 Detect → Estimate → Demodulate → Decode → Rescue → Verify
 
 Detect: Find signal bursts using the local noise floor rather than a manually selected threshold.
+
 Estimate: Automatically estimate signal characteristics such as baud rate and tone frequencies.
+
 Demodulate: Convert the received waveform into soft bits that retain information about how confident the receiver is in each bit.
+
 Decode: Recover AX.25 frames and verify them using their CRC.
+
 Rescue: When a frame fails its CRC, test combinations of the least-confident bits to determine whether a small number of errors can be corrected.
+
 Verify: Compare recovered frames against SatNOGS decoded data to determine whether the receiver recovered information that the standard decoder missed.
 
 ### Results
